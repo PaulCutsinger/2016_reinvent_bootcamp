@@ -1,0 +1,31 @@
+Table name: ASK-ABOUT-Resources
+Primary partition key: Locale (String)
+
+Text for one the english- US row: 
+{
+  "acknowledge": "OK.  I'll look into that back at my dojo. ",
+  "announcementCardTitle": "Announcements",
+  "announcementReprompt": "Would you like me to mark this as heard, and to tell you the next announcement?",
+  "confirm": "Is that correct?",
+  "confirmPreamble": "OK, so let me confirm. ",
+  "goodbye": "Good Bye",
+  "helpAnythingElse": "What else can I help you with?",
+  "helpLearnSomething": "You can also provide feedback on what other tasks you would like me to do, or information you would like me to provide by saying Learn something new.  I will then ask what you would like me to learn and then confirm I heard you correctly. ",
+  "helpReprompt": "What can I help you with?",
+  "helpTellMeAbout": "If you say Tell Me About AWS Lambda, I will provide you with a high level description of AWS Lambda.  You can substitute any AWS service for AWS Lambda and I will tell you about that service instead.  For example, Tell Me about Elastic Beanstalk or Tell me about Code Deploy.",
+  "helpWhatsNew": "If you say Whats New on AWS, I will tell you about the most recent AWS announcements, starting with the most recent announcement and working backwards.",
+  "joke": "I only know one cloud joke, I hope you like it.  Two no SQL developers walk into a bar...a few minutes later they walk out because they couldn't find a table.",
+  "learnPrompt": "What would you like me to learn how to do?",
+  "learnRequestConfirmation": "You want me to learn more about ",
+  "learnService": "If you think I should learn more about it, say Learn More About ",
+  "Locale": "en-US",
+  "noNewAnnouncements": "There are no new announcements since the last time you checked. ",
+  "quizNotReady": "I'm not quite ready to quiz you.  Check back later.",
+  "serviceDescriptionCardMoreInfo": "More information can be found at ",
+  "servicePrompt": "What service would you like me to describe? You can say things like S3 or dynamo d b",
+  "servicePromptShort": "Which service would you like to know more about?",
+  "serviceUnknown": "I'm not familiar with ",
+  "sorry": "I didn't follow.",
+  "welcome": "I am a Cloud Ninja, here to answer your AWS questions.  You can say things like, What's New on AWS or tell me more about a specific service. You can also direct my ninja studies by saying learn something new.",
+  "welcomeCardTitle": "Cloud Ninja"
+}
