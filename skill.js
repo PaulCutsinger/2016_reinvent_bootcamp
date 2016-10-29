@@ -13,7 +13,41 @@ var stage = "";
 var cachedWhatsNew = []; //simple cached version of what's new; will expire when function shutsdown
 var logOutput = {};
 var t; //a cache of our localized text strings from the resouces table; will expire when function shutsdown
-var requiredTokens =["Locale", "goodbye", "welcome", "welcomeReprompt"];
+var requiredTokens =[
+  "Locale", "sorry","serviceUnknown","learnService","servicePrompt","servicePromptShort","learnPrompt",
+  "helpAnythingElse","helpWhatsNew","helpTellMeAbout","helpLearnSomething","helpReprompt","welcomeCardTitle","welcome",
+  "announcementReprompt","announcementCardTitle","noNewAnnouncements","joke","serviceDescriptionCardMoreInfo",
+  "quizNotReady","learnRequestConfirmation","confirmPreamble","confirm","acknowledge","goodbye"];
+
+var t = {
+  "Locale": "en-US",
+  "sorry": "I didn't follow.",
+  "serviceUnknown":"I'm not familiar with " ,
+  "learnService":"If you think I should learn more about it, say Learn More About ",
+  "servicePrompt": "What service would you like me to describe? You can say things like S3 or dynamo d b",
+  "servicePromptShort":"Which service would you like to know more about?",
+  "learnPrompt":"What would you like me to learn how to do?",
+  "helpAnythingElse": "What else can I help you with?",
+  "helpWhatsNew":"If you say Whats New on AWS, I will tell you about the most recent AWS announcements, starting with the most recent announcement and working backwards.",
+  "helpTellMeAbout":"If you say Tell Me About AWS Lambda, I will provide you with a high level description of AWS Lambda.  You can substitute any AWS service for AWS Lambda and I will tell you about that service instead.  For example, Tell Me about Elastic Beanstalk or Tell me about Code Deploy.",
+  "helpLearnSomething":"You can also provide feedback on what other tasks you would like me to do, or information you would like me to provide by saying Learn something new.  I will then ask what you would like me to learn and then confirm I heard you correctly. ",
+  "helpReprompt":"What can I help you with?",
+  "welcomeCardTitle":"Cloud Ninja",
+  "welcome":"I am a Cloud Ninja, here to answer your AWS questions.  You can say things like " +
+      " What's New on AWS or tell me more about a specific service.  " +
+      "You can also direct my ninja studies by saying learn something new.",
+  "announcementReprompt":"Would you like me to mark this as heard, and to tell you the next announcement?",
+  "announcementCardTitle":"Announcements",
+  "noNewAnnouncements":"There are no new announcements since the last time you checked. " ,
+  "joke":"I only know one cloud joke, I hope you like it.  Two no SQL developers walk into a bar...a few minutes later they walk out because they couldn't find a table.",
+  "serviceDescriptionCardMoreInfo":"More information can be found at ",
+  "quizNotReady":"I'm not quite ready to quiz you.  Check back later.",
+  "learnRequestConfirmation":"You want me to learn more about ",
+  "confirmPreamble":"OK, so let me confirm. ",
+  "confirm":"Is that correct?",
+  "acknowledge":"OK.  I'll look into that back at my dojo. ",
+  "goodbye": "Good Bye"
+};
 
 
 // constants
@@ -136,8 +170,8 @@ function onIntent(intentRequest, session, callback) {
                             //didn't follow response.  reprompt
                             callback(session.attributes,
                             buildSpeechletResponse(null, null,
-                                "I didn't follow.  What service would you like me to describe?",
-                                "What would you like me to describe?",
+                                t.sorry+" "+t.unknownService,
+                                t.servicePrompt,
                                 false));
                         } else {
                             getDescribeServiceResponse(intent, session, callback, intent.slots.RandomInput.value);
@@ -148,8 +182,8 @@ function onIntent(intentRequest, session, callback) {
                             //didn't follow response.  reprompt
                             callback(session.attributes,
                             buildSpeechletResponse(null, null,
-                                "I didn't follow.  What would you like me to learn how to do?",
-                                "What would you like me to learn how to do?",
+                              t.sorry+" "+t.learnPrompt,
+                              t.learnPrompt,
                                 false));
                         } else {
                             getLearnSomethingResponse(intent, session, callback, null, intentRequest.timestamp, intent.slots.RandomInput.value);
@@ -181,7 +215,7 @@ function onIntent(intentRequest, session, callback) {
             } else {
                 switch (session.attributes.lastRequest) {
                     case "WhatsNew":
-                        callback({}, buildSpeechletResponse(null, null, "What else can I help you with?", "What else can I help you with?", false));
+                        callback({}, buildSpeechletResponse(null, null, t.howCanIHelp, t.howCanIHelp, false));
                         break;
                     case "WhatToLearn":
                         getLearnSomethingResponse(intent, session, callback, "no");
@@ -234,7 +268,7 @@ function onIntent(intentRequest, session, callback) {
  * Is not called when the skill returns shouldEndSession=true.
  */
 function onSessionEnded(callback) {
-    var goodbyeText = "Good bye.";
+    var goodbyeText = t.goodbye;
     callback({}, buildSpeechletResponse(null, null, goodbyeText, "", true));
 }
 
@@ -242,36 +276,39 @@ function onSessionEnded(callback) {
 function getHelpResponse(callback) {
     var sessionAttributes = {};
     var cardTitle = null;
-    // What's New Help
-    var speechOutput = "If you say What's New on AWS, I will tell you about the most recent AWS announcements, starting with the most recent announcement and working backwards.  ";
-    // Describe Service Help
-    speechOutput += " If you say Tell Me About AWS Lambda, I will provide you with a high level description of AWS Lambda.  You can substitute any AWS service for AWS Lambda and I will tell you about that service instead.  For example, Tell Me about Elastic Beanstalk or Tell me about Code Deploy.";
-    // Learn Something New help
-    speechOutput += " You can also provide feedback on what other tasks you would like me to do, or information you would like me to provide by saying Learn something new.  I will then ask what you would like me to learn and then confirm I heard you correctly. ";
-    // reprompt text
-    var repromptText = " What can I help you with?";
-    speechOutput += repromptText;
+
+    //to keep the help response concise, we tell the customer about a random feature we support when they ask for help
+
+
+    var speechOutput = randomHelp();
+    var repromptText = randomHelp();
+
     var shouldEndSession = false;
 
     callback(sessionAttributes,
     buildSpeechletResponse(null, null, speechOutput, repromptText, shouldEndSession));
 }
 
+function randomHelp(){
+  var helpArray = [t.helpWhatsNew, t.helpTellMeAbout, t.helpLearnSomething];
+  var helpIndex = Math.floor(Math.random() * helpArray.length);
+  var speechOutput=" "+helpArray[helpIndex]+" ";
+  return speechOutput;
+}
 
 function getWelcomeResponse(callback) {
     // If we wanted to initialize the session to have some attributes we could add those here.
     var sessionAttributes = {
         currentWhatsNew : 0
     };
-    var cardTitle = "Cloud Ninja";
-    var speechOutput = "I am a Cloud Ninja, here to answer your AWS questions.  You can say things like " +
-        " What's New on AWS or tell me more about a specific service.  " +
-        "You can also direct my ninja studies by saying learn something new.";
+    var cardTitle = t.welcomeCardTitle;
+    var speechOutput = t.welcome;
     // If the user either does not reply to the welcome message or says something that is not
     // understood, they will be prompted again with this text.
     //    var repromptText = "You can say things like What's new on AWS or tell me more about a specific service.";
-    var repromptText = " What can I help you with?";
-    speechOutput += repromptText;
+
+    var repromptText = randomHelp();
+
     var shouldEndSession = false;
 
     callback(sessionAttributes,
@@ -386,7 +423,7 @@ function HandleWhatsNewRequest(lastWhatsNew, UserId, callback) {
 
         // return announcement
         var cardTitle = "";
-        var repromptText = "Would you like me to mark this as heard, and to tell you the next announcement?";
+        var repromptText = t.announcementReprompt;
         var sessionAttributes = {};
         var shouldEndSession = false;
         var speechOutput = "";
@@ -401,7 +438,8 @@ function HandleWhatsNewRequest(lastWhatsNew, UserId, callback) {
         //cardOutput += "\n";
 
         //todo: put announcement title as card title instead of what's new
-        cardTitle = "What's New on AWS";
+
+        cardTitle = t.announcementCardTitle;
 
         speechOutput += cachedWhatsNew[currentWhatsNew].SpeechDescription.S;
         speechOutput += ". ";
@@ -410,7 +448,7 @@ function HandleWhatsNewRequest(lastWhatsNew, UserId, callback) {
             // reading the last announcement
             // todo - this is a bit awkward because we don't know if there are more announcements to be read, so could offer another announcement
             // when there isn't one to be had.
-            repromptText = "This is the last announcement.  Would you like me to mark this as heard?";
+            repromptText = t.announcementReprompt;
         }
 
 
@@ -423,8 +461,8 @@ function HandleWhatsNewRequest(lastWhatsNew, UserId, callback) {
             };
         } else {
             //we're done with announcements
-            repromptText = "What else can I help you with?";
-            speechOutput = "There are no new announcements since the last time you checked. " + repromptText;
+            repromptText = t.helpReprompt;
+            speechOutput = t.noNewAnnouncements + randomHelp();
 
             sessionAttributes = {
                 lastWhatsNew : lastWhatsNew,
@@ -451,7 +489,7 @@ function validateAppId(event, context, callback) {
           console.log(error, error.stack);
       }
       else {
-          console.log("the AppId table data is: "+ JSON.stringify(data));
+          //console.log("the AppId table data is: "+ JSON.stringify(data));
 
           //We'll consider any appId in the table that matches the session data to be valid
           //you could choose to test for specific prod or test appids
@@ -478,7 +516,7 @@ function validateAppId(event, context, callback) {
 
 
       }
-      console.log("AppId is valid: "+isValid);
+      //console.log("AppId is valid: "+isValid);
       callback();
 
   });
@@ -487,7 +525,7 @@ function validateAppId(event, context, callback) {
 
 function getLocalizedResources (event, context, callback) {
   var checkTokens = [];
-  console.log("in getLocalStrings");
+  //console.log("in getLocalStrings");
   var params = {
       TableName: AppPrefix + "-" + ResponsesTableName
       };
@@ -518,16 +556,14 @@ function getLocalizedResources (event, context, callback) {
           var entry;
           entry=data.Items[localeId];
           for (name in entry) {
-            console.log("key: "+ JSON.stringify(name));
+            //console.log("key: "+ JSON.stringify(name));
             checkTokens.push(name);
 
-            console.log("value: "+ JSON.stringify(entry[name].S));
+            //console.log("value: "+ JSON.stringify(entry[name].S));
           }
-          console.log("c key: "+ checkTokens);
-          console.log("r key: "+ requiredTokens);
-          console.log(arraysEqual(checkTokens, requiredTokens));
-
-
+          //console.log("c key: "+ checkTokens);
+          //console.log("r key: "+ requiredTokens);
+          arraysEqual(checkTokens, requiredTokens);
 
 
 
@@ -548,8 +584,6 @@ function arraysEqual(a, b) {
   // the array, you should sort both arrays here.
   a.sort();
   b.sort();
-  console.log("a: "+a);
-  console.log("b: "+a);
 
   for (var i = 0; i < a.length; ++i) {
     if (a[i] !== b[i]) {
@@ -579,9 +613,9 @@ function getOfficialServiceName(spokenServiceName, callback) {
         } else {
             if (!data.Item) {
                 //no match
-                var speechOutput = "I'm not familiar with " + spokenServiceName + ". " +
-                    "If you think I should learn more about it, say Learn More About " + spokenServiceName + ".";
-                var repromptText = " What else can I help you with?";
+                var speechOutput = t.serviceUnknown+" "+ spokenServiceName + ". " +
+                    t.learnService +" " + spokenServiceName + ".";
+                var repromptText = randomHelp();
                 var sessionAttributes = {
                     lastRequest : "DescribeService"
                 };
@@ -596,8 +630,8 @@ function getOfficialServiceName(spokenServiceName, callback) {
 
                 if (officialName == "Joke") {
                     logInfo("Joke", "Telling a joke");
-                    var speechOutput = "I only know one cloud joke, I hope you like it.  Two no SQL developers walk into a bar...a few minutes later they walk out because they couldn't find a table.";
-                    var repromptText = " What else can I help you with?";
+                    var speechOutput = t.joke;
+                    var repromptText = randomHelp();
                     var sessionAttributes = { lastRequest: "DescribeService" };
                     var shouldEndSession = false;
 
@@ -633,9 +667,9 @@ function getServiceDescriptions(officialName, callback) {
         else {
             logInfo("returned data", JSON.stringify(data));
 
-            var cardOutput = data.Item.CardDescription.S + "\nMore information can be found at " + data.Item.CardURL.S;
+            var cardOutput = data.Item.CardDescription.S + "\n"+ t.serviceDescriptionCardMoreInfo + data.Item.CardURL.S;
             var speechOutput = data.Item.SSMLDescription.S;
-            var repromptText = " What else can I help you with?";
+            var repromptText = randomHelp();
             var sessionAttributes = { lastRequest: "DescribeService" };
             var cardTitle = officialName;
             var shouldEndSession = false;
@@ -651,7 +685,7 @@ function getDescribeServiceResponse(intent, session, callback, randomInput) {
 
     var spokenServiceName = intent.slots.ServiceName.value;
     var cardTitle = "";
-    var repromptText = " What else can I help you with?";
+    var repromptText = randomHelp();
     var sessionAttributes = {};
     var shouldEndSession = false;
     var speechOutput = "";
@@ -662,7 +696,7 @@ function getDescribeServiceResponse(intent, session, callback, randomInput) {
         if (!randomInput) {
             //prompt for service name
             sessionAttributes = { lastRequest: "DescribeService" };
-            speechOutput = "Which service would you like to know more about?";
+            speechOutput = t.servicePromptShort;
             repromptText = speechOutput;
 
             callback(sessionAttributes,
@@ -683,7 +717,7 @@ function getQuizMeResponse(intent, session, callback) {
     var repromptText = "";
     var sessionAttributes = {};
     var shouldEndSession = true;
-    var speechOutput = "I'm not quite ready to quiz you.  Check back later.";
+    var speechOutput = t.quizNotReady;
     var cardOutput = "";
 
     callback(sessionAttributes,
@@ -708,7 +742,7 @@ function getLearnSomethingResponse(intent, session, callback, confirmed, timesta
             //check randomInput
             if (!randomInput) {
                 logInfo("getLearnSomethingResponse", "learning topic not specified");
-                speechOutput = "What would you like me to learn more about?";
+                speechOutput = t.learnPrompt;
                 repromptText = speechOutput;
                 sessionAttributes = {
                     lastRequest: "WhatToLearn"
@@ -749,12 +783,12 @@ function getLearnSomethingResponse(intent, session, callback, confirmed, timesta
 
     if (!confirmed) {
         //repeat back, ask for confirmation
-        speechOutput = "OK, so let me confirm.  You want me to learn more about " +
+        speechOutput = t.confirmPreamble+" "+t.learnRequestConfirmation +
                 learningTopic +
-                ". Is that correct?";
-        repromptText = "You want me to learn more about " +
+                ". "+ t.confirm ;
+        repromptText = t.learnRequestConfirmation +
                 learningTopic +
-                ". Is that correct?";
+                ". "+ t.confirm ;
         sessionAttributes = {
             lastRequest: "WhatToLearn",
             WhatToLearn: learningTopic
@@ -762,15 +796,15 @@ function getLearnSomethingResponse(intent, session, callback, confirmed, timesta
     } else {
         //in confirmation step
         if (confirmed === "no") {
-            speechOutput = "sorry about that.  Please tell me again what you would like me to learn more about?";
-            repromptText = "What would you like me to learn more about?";
+            speechOutput = t.sorry+" "+t.learnPrompt;
+            repromptText = t.learnPrompt;
             sessionAttributes = {
                 lastRequest: "WhatToLearn"
             };
         } else {
             // must be yes
-            speechOutput = "OK.  I'll look into that back at my dojo.  What else can I do for you?";
-            repromptText = "How else can I help?";
+            speechOutput = t.acknowledge+" "+ randomHelp();
+            repromptText = randomHelp();
             //store in database
             AddToLearnList(learningTopic, session.user.userId, timestamp, function () {
                 callback(sessionAttributes, buildSpeechletResponse(null, null, speechOutput, repromptText, shouldEndSession));
