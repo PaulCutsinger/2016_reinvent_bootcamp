@@ -12,43 +12,7 @@ var bDebug = true;
 var stage = "";
 var cachedWhatsNew = []; //simple cached version of what's new; will expire when function shutsdown
 var logOutput = {};
-var t; //a cache of our localized text strings from the resouces table; will expire when function shutsdown
-var requiredTokens =[
-  "Locale", "sorry","serviceUnknown","learnService","servicePrompt","servicePromptShort","learnPrompt",
-  "helpAnythingElse","helpWhatsNew","helpTellMeAbout","helpLearnSomething","helpReprompt","welcomeCardTitle","welcome",
-  "announcementReprompt","announcementCardTitle","noNewAnnouncements","joke","serviceDescriptionCardMoreInfo",
-  "quizNotReady","learnRequestConfirmation","confirmPreamble","confirm","acknowledge","goodbye"];
-
-var t = {
-  "Locale": "en-US",
-  "sorry": "I didn't follow.",
-  "serviceUnknown":"I'm not familiar with " ,
-  "learnService":"If you think I should learn more about it, say Learn More About ",
-  "servicePrompt": "What service would you like me to describe? You can say things like S3 or dynamo d b",
-  "servicePromptShort":"Which service would you like to know more about?",
-  "learnPrompt":"What would you like me to learn how to do?",
-  "helpAnythingElse": "What else can I help you with?",
-  "helpWhatsNew":"If you say Whats New on AWS, I will tell you about the most recent AWS announcements, starting with the most recent announcement and working backwards.",
-  "helpTellMeAbout":"If you say Tell Me About AWS Lambda, I will provide you with a high level description of AWS Lambda.  You can substitute any AWS service for AWS Lambda and I will tell you about that service instead.  For example, Tell Me about Elastic Beanstalk or Tell me about Code Deploy.",
-  "helpLearnSomething":"You can also provide feedback on what other tasks you would like me to do, or information you would like me to provide by saying Learn something new.  I will then ask what you would like me to learn and then confirm I heard you correctly. ",
-  "helpReprompt":"What can I help you with?",
-  "welcomeCardTitle":"Cloud Ninja",
-  "welcome":"I am a Cloud Ninja, here to answer your AWS questions.  You can say things like " +
-      " What's New on AWS or tell me more about a specific service.  " +
-      "You can also direct my ninja studies by saying learn something new.",
-  "announcementReprompt":"Would you like me to mark this as heard, and to tell you the next announcement?",
-  "announcementCardTitle":"Announcements",
-  "noNewAnnouncements":"There are no new announcements since the last time you checked. " ,
-  "joke":"I only know one cloud joke, I hope you like it.  Two no SQL developers walk into a bar...a few minutes later they walk out because they couldn't find a table.",
-  "serviceDescriptionCardMoreInfo":"More information can be found at ",
-  "quizNotReady":"I'm not quite ready to quiz you.  Check back later.",
-  "learnRequestConfirmation":"You want me to learn more about ",
-  "confirmPreamble":"OK, so let me confirm. ",
-  "confirm":"Is that correct?",
-  "acknowledge":"OK.  I'll look into that back at my dojo. ",
-  "goodbye": "Good Bye"
-};
-
+var t ={}; //a cache of our localized text strings from the resouces table; will expire when function shutsdown
 
 // constants
 var AppPrefix = "ASK-ABOUT";
@@ -60,9 +24,11 @@ var AppsTableName = "Apps";
 var ResponsesTableName = "Resources";
 var AliasTableName = "Alias";
 var Context;
-
-
-
+var requiredTokens =[
+  "Locale", "sorry","serviceUnknown","learnService","servicePrompt","servicePromptShort","learnPrompt",
+  "helpAnythingElse","helpWhatsNew","helpTellMeAbout","helpLearnSomething","helpReprompt","welcomeCardTitle","welcome",
+  "announcementReprompt","announcementCardTitle","noNewAnnouncements","joke","serviceDescriptionCardMoreInfo",
+  "quizNotReady","learnRequestConfirmation","confirmPreamble","confirm","acknowledge","goodbye"]; // we'll check the db against this list to be sure that we have all the required tokens
 
 
 
@@ -552,23 +518,21 @@ function getLocalizedResources (event, context, callback) {
           }
 
           //now get all the keys and values for this Locale
+          //and make sure we have them all
           var name;
           var entry;
           entry=data.Items[localeId];
           for (name in entry) {
             //console.log("key: "+ JSON.stringify(name));
             checkTokens.push(name);
+            t[name]=entry[name].S; //cache all the strings into t
 
             //console.log("value: "+ JSON.stringify(entry[name].S));
           }
-          //console.log("c key: "+ checkTokens);
-          //console.log("r key: "+ requiredTokens);
+
           arraysEqual(checkTokens, requiredTokens);
-
-
-
+          //console.log("t "+JSON.stringify(t));
       }
-
       callback();
 
   });
