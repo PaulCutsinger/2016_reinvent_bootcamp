@@ -11,8 +11,10 @@ var bDebug = true;
 //variables
 var stage = "";
 var cachedWhatsNew = []; //simple cached version of what's new; will expire when function shutsdown
-var cachedLanguageStrings = []; //simple cached version of language strings; will expire when function shutsdown
 var logOutput = {};
+var t; //a cache of our localized text strings from the resouces table; will expire when function shutsdown
+var requiredTokens =["Locale", "goodbye", "welcome", "welcomeReprompt"];
+
 
 // constants
 var AppPrefix = "ASK-ABOUT";
@@ -21,14 +23,18 @@ var OldNewsTableName = "OldNews";
 var ActivityTableName = "Activity";
 var DefinitionTableName = "Definition";
 var AppsTableName = "Apps";
-var UtterancesTableName = "Utterances";
+var ResponsesTableName = "Resources";
 var AliasTableName = "Alias";
+var Context;
+
+
+
 
 
 
 exports.handler = function (event, context) {
     try {
-
+        Context=context;
         var functionName= context.invokedFunctionArn;
         stage = functionName.split(":")[functionName.split(":").length - 1];
 
@@ -39,48 +45,51 @@ exports.handler = function (event, context) {
         logInfo("context", JSON.stringify(context));
 
 
-        //read AppId from DDB and update if it exists.
+        //ensure we have a valid AppId
 
-        validateAppId(event, context, function (error) {
-          if (error) {
-            console.log(error);
-          } else {
-              console.log("respond to request type");
+        validateAppId(event,context,function(){
+          getLocalizedResources(event,context,function(){
+            reactToEventRequestType(event,context)
+          });
+        });
 
+      } catch (e) {
+          context.fail("Exception: " + e);
+      }
 
-
-                if (event.session.new) {
-                    onSessionStarted();
-                }
-
-                if (event.request.type === "LaunchRequest") {
-                    onLaunch(
-                        function callback(sessionAttributes, speechletResponse) {
-                        context.succeed(buildResponse(sessionAttributes, speechletResponse));
-                    });
-                } else if (event.request.type === "IntentRequest") {
-                    onIntent(event.request,
-                        event.session,
-                        function callback(sessionAttributes, speechletResponse) {
-                        if (!sessionAttributes) {
-                            context.succeed(buildEmptyResponse());
-                        } else {
-                            context.succeed(buildResponse(sessionAttributes, speechletResponse));
-                        }
-                    });
-                } else if (event.request.type === "SessionEndedRequest") {
-                    onSessionEnded(
-                            function callback(sessionAttributes, speechletResponse) {
-                        context.succeed(buildResponse(sessionAttributes, speechletResponse));
-                    });
-                }
-              }
-            });
-        } catch (e) {
-            context.fail("Exception: " + e);
-        }
 
 };
+
+function reactToEventRequestType (event, context) {
+      console.log("in reactToEventRequestType");
+        if (event.session.new) {
+            onSessionStarted();
+        }
+
+        if (event.request.type === "LaunchRequest") {
+            onLaunch(
+                function callback(sessionAttributes, speechletResponse) {
+                context.succeed(buildResponse(sessionAttributes, speechletResponse));
+            });
+        } else if (event.request.type === "IntentRequest") {
+            onIntent(event.request,
+                event.session,
+                function callback(sessionAttributes, speechletResponse) {
+                if (!sessionAttributes) {
+                    context.succeed(buildEmptyResponse());
+                } else {
+                    context.succeed(buildResponse(sessionAttributes, speechletResponse));
+                }
+            });
+        } else if (event.request.type === "SessionEndedRequest") {
+            onSessionEnded(
+                    function callback(sessionAttributes, speechletResponse) {
+                context.succeed(buildResponse(sessionAttributes, speechletResponse));
+            });
+        }
+      }
+
+
 
 /**
  * Called when the session starts.
@@ -448,7 +457,7 @@ function validateAppId(event, context, callback) {
           //you could choose to test for specific prod or test appids
           var isValid=false; //by default, we won't allow AppIds that we don't recognize
 
-          //Check if there's anything in the DB. If not, allow the default appId in the Lambda test event but no other
+          //Always allow the AppId used in Lambda's Alexa Start Session Test Event
           if (data.Count==0){
             if (event.session.application.applicationId == "amzn1.echo-sdk-ams.app.[unique-value-here]") {
               isValid=true;
@@ -476,6 +485,81 @@ function validateAppId(event, context, callback) {
 
 }
 
+function getLocalizedResources (event, context, callback) {
+  var checkTokens = [];
+  console.log("in getLocalStrings");
+  var params = {
+      TableName: AppPrefix + "-" + ResponsesTableName
+      };
+  dynamodb.scan(params, function (error, data) {
+      if (error) {
+          console.log(error, error.stack);
+      }
+      else {
+          console.log("the " + ResponsesTableName +" table data is: "+ JSON.stringify(data));
+          //console.log(data.Items.welcome.S);
+          var localeId=0;
+
+          //Find the right localized resources for this locale by comparing the locale in the request to the locale in the resources table.
+          for (var i = 0; i < data.Count; i++) {
+            var requestLocale = "en-US"; // default to en-US if there is no locale passed in the request.
+            if (event.request.locale) {requestLocale=JSON.stringify(event.request.locale);} //locale from request
+            if (data.Items[i].Locale.S) {
+              var itemLocale = JSON.stringify(data.Items[i].Locale.S);  // update locale to be from item
+            } else {
+              context.fail("Unable to find localized text in the resources DB table");
+            }
+
+            if (requestLocale == itemLocale) {localeId=i;}
+          }
+
+          //now get all the keys and values for this Locale
+          var name;
+          var entry;
+          entry=data.Items[localeId];
+          for (name in entry) {
+            console.log("key: "+ JSON.stringify(name));
+            checkTokens.push(name);
+
+            console.log("value: "+ JSON.stringify(entry[name].S));
+          }
+          console.log("c key: "+ checkTokens);
+          console.log("r key: "+ requiredTokens);
+          console.log(arraysEqual(checkTokens, requiredTokens));
+
+
+
+
+
+      }
+
+      callback();
+
+  });
+
+}
+
+function arraysEqual(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (a.length != b.length) return false;
+
+  // If you don't care about the order of the elements inside
+  // the array, you should sort both arrays here.
+  a.sort();
+  b.sort();
+  console.log("a: "+a);
+  console.log("b: "+a);
+
+  for (var i = 0; i < a.length; ++i) {
+    if (a[i] !== b[i]) {
+      Context.fail("The list of string keys in the resources table does not exactly match the list of required tokens.")
+      console.log("false "+i);
+      return false;
+    }
+  }
+  return true;
+}
 function getOfficialServiceName(spokenServiceName, callback) {
     //remove spaces to make lookup easier
     //force lowercase to also make lookup easier
