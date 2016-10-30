@@ -1,0 +1,9 @@
+Table name: ASK-ABOUT-Apps
+
+Partition Key: AppId (String)
+Primary Sort Key: Version (String)
+
+{
+  "AppId": "amzn1.echo-sdk-ams.app.[unique-value-here]",
+  "Version": "Prod"
+}
